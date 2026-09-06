@@ -50,7 +50,7 @@ OmniCare AI closes that gap. A business connects its knowledge base *and* its bu
 | Decision making | Intent classification | Agent loop — the model chooses tools, chains them, and stops when done |
 | Escalation | Keyword trigger | Escalation is a tool the agent invokes when it recognises its own limits |
 | Extending to a new system | Vendor roadmap | Write an MCP server; core code does not change |
-| Languages | Per-language training | Multilingual by default through the model and multilingual embeddings |
+| Languages | Per-language training | Multilingual answers from the LLM; retrieval uses a compact English-first embedding model (a multilingual embedding model is a post-MVP swap) |
 
 The extension story is the architectural bet. Adding support for a new ERP means adding a connector — never editing the agent, the chat pipeline, or the retrieval layer.
 
