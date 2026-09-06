@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: omnicare-platform
+  datasource:
+    url: jdbc:postgresql://localhost:5433/omnicare
+    username: ${DB_USER:omnicare}
+    password: ${DB_PASSWORD:omnicare_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.format_sql: true
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.omnicare.platform: DEBUG
