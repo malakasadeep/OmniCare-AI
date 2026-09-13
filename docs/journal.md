@@ -124,3 +124,22 @@ Five lines a day: what I learned, where I got stuck.
   trying to write JSON into a committed `text/event-stream` response. Naming `ClientAbortException` did not
   help — on this platform a bare `IOException` propagates. The honest discriminator is whether the response
   is already committed: if it is, there is nobody left to tell.
+
+## Day 9 — Prompt building and the context window
+
+- The sliding window really is cache eviction in a hat: fixed capacity, entries of varying size, and a
+  policy for what to throw out. Oldest-first, because in support the last few exchanges carry the meaning
+  and the opening pleasantries carry none. Two entries are pinned — the system prompt and the current
+  question — since dropping the question would mean confidently answering something nobody asked.
+- Found a subtler rule while writing the tests: if eviction leaves an assistant turn whose question is gone,
+  that turn is an answer to nothing and reads to the model as an unprompted assertion of fact. The window
+  now drops orphaned answers too.
+- Token counting is an *estimate* and the honest version of that matters. Four characters per token holds
+  for English and badly under-counts non-Latin scripts — so the count is least accurate exactly where this
+  product promises to work. Hence a budget well under the model's real window rather than at it.
+- Multilingual support turned out to be a prompt feature, not a code feature. There is no language detection
+  anywhere; the model already knows how, and a detector would be a second thing to be wrong.
+- Put the prompt in a versioned resource rather than a Java string, with `docs/prompts/` holding the history
+  and reasoning rather than a second copy — a duplicated prompt drifts, and then nobody knows which text the
+  model actually saw. Verified the window at runtime: the same 122-message conversation sends 122 messages
+  at budget 8000 and 14 at budget 800, and stays answerable either way.
