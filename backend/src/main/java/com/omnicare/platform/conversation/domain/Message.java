@@ -59,6 +59,19 @@ public final class Message {
         return create(tenantId, conversationId, MessageRole.SYSTEM, content, createdAt);
     }
 
+    /**
+     * Rebuilds a message from state that was already persisted. For the
+     * persistence mappers only — see {@code Conversation.rehydrate}.
+     */
+    public static Message rehydrate(MessageId id,
+                                    TenantId tenantId,
+                                    ConversationId conversationId,
+                                    MessageRole role,
+                                    String content,
+                                    Instant createdAt) {
+        return new Message(id, tenantId, conversationId, role, content, createdAt);
+    }
+
     private static Message create(TenantId tenantId,
                                   ConversationId conversationId,
                                   MessageRole role,

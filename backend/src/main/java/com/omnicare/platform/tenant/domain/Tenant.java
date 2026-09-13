@@ -43,6 +43,14 @@ public final class Tenant {
      * holds is rejected rather than silently ignored: it almost always means the
      * caller is working from stale state, and a no-op would hide that.
      */
+    /**
+     * Rebuilds a tenant from state that was already persisted. For the
+     * persistence mappers only — see {@code Conversation.rehydrate}.
+     */
+    public static Tenant rehydrate(TenantId id, String name, Plan plan, Instant createdAt, Instant updatedAt) {
+        return new Tenant(id, name, plan, createdAt, updatedAt);
+    }
+
     public void changePlan(Plan newPlan, Instant occurredAt) {
         Objects.requireNonNull(newPlan, "newPlan must not be null");
         Objects.requireNonNull(occurredAt, "occurredAt must not be null");

@@ -47,6 +47,29 @@ public final class Conversation {
                 startedAt);
     }
 
+    /**
+     * Rebuilds a conversation from state that was already persisted.
+     *
+     * <p>Unlike {@link #start}, this does not run the state machine — the stored
+     * row is history, and history is not re-validated. It is meant for the
+     * persistence mappers only; application code starts conversations and then
+     * asks them to transition.
+     */
+    public static Conversation rehydrate(ConversationId id,
+                                         TenantId tenantId,
+                                         VisitorId visitorId,
+                                         ConversationStatus status,
+                                         UserId assignedOperator,
+                                         String escalationReason,
+                                         Instant createdAt,
+                                         Instant updatedAt) {
+        Conversation conversation =
+                new Conversation(id, tenantId, visitorId, status, createdAt, updatedAt);
+        conversation.assignedOperator = assignedOperator;
+        conversation.escalationReason = escalationReason;
+        return conversation;
+    }
+
     public void escalateToHuman(String reason, Instant occurredAt) {
         String validReason = Guards.requireNonBlank(reason, "reason");
         transitionTo(ConversationStatus.AWAITING_HUMAN, occurredAt);
