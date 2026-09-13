@@ -17,6 +17,22 @@ spring:
     enabled: true
 
 omnicare:
+  llm:
+    # Flip to `groq` (with GROQ_API_KEY set) for a real model. This one value is
+    # the whole switch — no code changes hands.
+    provider: ${LLM_PROVIDER:fake}
+    model: ${LLM_MODEL:llama-3.3-70b-versatile}
+    # Low, not zero: support answers should be steady rather than inventive.
+    temperature: ${LLM_TEMPERATURE:0.3}
+    max-tokens: ${LLM_MAX_TOKENS:1024}
+    timeout: ${LLM_TIMEOUT:30s}
+    groq:
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
+      # Empty by default, and the provider bean is not created without it, so a
+      # deployment that forgot the key fails at startup instead of on a visitor's
+      # first message.
+      api-key: ${GROQ_API_KEY:}
+
   jwt:
     # Dev-only fallback so a fresh clone runs without setup. Production sets
     # JWT_SECRET; changing it invalidates every token already issued, which is
