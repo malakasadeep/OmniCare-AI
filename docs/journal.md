@@ -67,3 +67,22 @@ Five lines a day: what I learned, where I got stuck.
   reached the client as a 401. MockMvc never performs that dispatch. Added a `RANDOM_PORT` test that does.
 - Defense in depth is now literal: the app filters by tenant, and if it forgets, `select * from conversations`
   returns 3 rows scoped to A, 0 rows unscoped — and 6 to a superuser, which is the whole reason it isn't one.
+
+## Day 6 — Conversation API
+
+- DTOs stopped feeling like boilerplate once I wrote `ConversationResponse`: returning `Conversation` would
+  bind the wire format to the domain, so renaming a domain field would break every client. The DTO is the
+  contract; the domain is free to change behind it.
+- Layering held up — controller binds and validates, service sequences repository calls, domain owns the
+  rules. `ConversationService` has no `if` in it worth the name, because the decisions live in `Conversation`.
+- Introduced `Replier` as an interface with one fixed-string implementation. Day 7's `LlmProvider` becomes a
+  new implementation rather than surgery on the service. Naming it `PlaceholderReplier` and having it *say*
+  it isn't a model means it can't quietly survive into a demo.
+- Ordering bit me before it broke anything: Postgres keeps microseconds, and a user message plus its reply
+  are written inside one request, so both can land on the same timestamp and the transcript order — the order
+  the model gets shown — becomes undefined. The reply is now stamped strictly after the question.
+- The global handler taught me something sharp. Adding `@ExceptionHandler(Exception.class)` made every 404
+  a 500, because the advice runs before Spring's own resolvers. Then the obvious fix still missed:
+  `ResponseStatusException` extends `ErrorResponseException`, but `NoResourceFoundException` extends
+  `ServletException` and only *implements* `ErrorResponse`. A catch-all is a liability unless you know
+  exactly what it is catching.

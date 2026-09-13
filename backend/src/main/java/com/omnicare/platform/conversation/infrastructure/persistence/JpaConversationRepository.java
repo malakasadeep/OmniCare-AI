@@ -4,7 +4,9 @@ import com.omnicare.platform.conversation.domain.Conversation;
 import com.omnicare.platform.conversation.domain.ConversationRepository;
 import com.omnicare.platform.shared.domain.ConversationId;
 import com.omnicare.platform.shared.domain.TenantId;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,5 +46,13 @@ class JpaConversationRepository implements ConversationRepository {
     @Override
     public long countForTenant(TenantId tenantId) {
         return jpa.countByTenantId(tenantId.value());
+    }
+
+    @Override
+    public List<Conversation> findRecentForTenant(TenantId tenantId, int page, int size) {
+        return jpa.findByTenantIdOrderByCreatedAtDescIdDesc(
+                        tenantId.value(), PageRequest.of(page, size)).stream()
+                .map(ConversationMapper::toDomain)
+                .toList();
     }
 }
