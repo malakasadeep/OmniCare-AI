@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 class LlmProviderFactoryTest {
 
@@ -26,6 +27,11 @@ class LlmProviderFactoryTest {
         @Override
         public LlmResponse chat(LlmRequest request) {
             return new LlmResponse("from " + name, 0, 0, "stop");
+        }
+
+        @Override
+        public Flux<String> streamChat(LlmRequest request) {
+            return Flux.just("from ", name);
         }
     }
 

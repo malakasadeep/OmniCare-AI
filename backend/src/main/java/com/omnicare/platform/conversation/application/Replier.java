@@ -1,5 +1,7 @@
 package com.omnicare.platform.conversation.application;
 
+import reactor.core.publisher.Flux;
+
 /**
  * Produces the assistant's answer to a visitor's message.
  *
@@ -11,4 +13,10 @@ package com.omnicare.platform.conversation.application;
 public interface Replier {
 
     String replyTo(String visitorMessage);
+
+    /**
+     * The same answer, delivered as it is produced. Concatenating every element
+     * gives what {@link #replyTo} would have returned.
+     */
+    Flux<String> streamReplyTo(String visitorMessage);
 }
