@@ -1,6 +1,7 @@
 package com.omnicare.platform.conversation.api;
 
 import com.omnicare.platform.conversation.application.ConversationService;
+import com.omnicare.platform.conversation.application.ConversationStreamService;
 import com.omnicare.platform.conversation.domain.Conversation;
 import com.omnicare.platform.conversation.domain.ConversationRepository;
 import com.omnicare.platform.shared.api.ResourceNotFoundException;
@@ -9,10 +10,14 @@ import com.omnicare.platform.shared.domain.VisitorId;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * The conversation resource.
@@ -39,10 +46,14 @@ class ConversationController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final ConversationService conversations;
+    private final ConversationStreamService stream;
     private final ConversationRepository repository;
 
-    ConversationController(ConversationService conversations, ConversationRepository repository) {
+    ConversationController(ConversationService conversations,
+                           ConversationStreamService stream,
+                           ConversationRepository repository) {
         this.conversations = conversations;
+        this.stream = stream;
         this.repository = repository;
     }
 
@@ -89,6 +100,32 @@ class ConversationController {
         return conversations.transcript(new ConversationId(id)).stream()
                 .map(MessageResponse::from)
                 .toList();
+    }
+
+    /**
+     * The same turn as {@code POST /messages}, delivered as it is written.
+     *
+     * <p>GET with the message in the query string, because that is what the
+     * browser's {@code EventSource} can issue — it cannot POST, and Day 22's
+     * widget is the caller this exists for. The cost is that visitor text lands
+     * in access logs, which is noted in docs/backlog.md.
+     */
+    @GetMapping(value = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    Flux<ServerSentEvent<TokenEvent>> stream(
+            @PathVariable UUID id,
+            @RequestParam("message")
+            @NotBlank(message = "message is required")
+            @Size(max = 8000, message = "message must be at most 8000 characters")
+            String message) {
+
+        return stream.stream(new ConversationId(id), message)
+                .map(token -> ServerSentEvent.builder(new TokenEvent(token))
+                        .event("token")
+                        .build())
+                .concatWith(Mono.just(ServerSentEvent.<TokenEvent>builder()
+                        .event("done")
+                        .data(new TokenEvent(""))
+                        .build()));
     }
 
     @PostMapping("/{id}/messages")

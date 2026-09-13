@@ -1,6 +1,9 @@
 package com.omnicare.platform.shared.api;
 
 import com.omnicare.platform.shared.domain.DomainException;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import com.omnicare.platform.shared.domain.InvalidEmailException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -107,6 +110,37 @@ class ApiExceptionHandler {
                 ? HttpStatus.valueOf(response.getStatusCode().value())
                 : HttpStatus.INTERNAL_SERVER_ERROR;
         return problem(status, status.getReasonPhrase());
+    }
+
+    /**
+     * An I/O failure while writing the response.
+     *
+     * <p>Almost always the visitor going away — closed the tab, navigated off,
+     * lost signal — which is ordinary, especially mid-stream, and not a fault.
+     * The discriminator is whether the response is already committed: if it is,
+     * bytes were already on the wire and there is no connection left to explain
+     * anything to, so this is logged at debug and nothing is written. Attempting
+     * to write would fail a second time, inside the handler, trying to put a
+     * JSON body into a response already committed as {@code text/event-stream}.
+     *
+     * <p>An I/O failure <em>before</em> anything was committed is a real
+     * server-side problem and still reported as one.
+     *
+     * <p>Catching {@code IOException} rather than {@code ClientAbortException}
+     * is deliberate: on some platforms the raw {@code IOException} propagates
+     * without ever being wrapped in Tomcat's type, so naming that type alone
+     * misses the very case this exists for.
+     */
+    @ExceptionHandler({IOException.class, AsyncRequestNotUsableException.class})
+    ResponseEntity<Map<String, Object>> onWriteFailure(Exception e, HttpServletResponse response) {
+        if (response.isCommitted() || e instanceof AsyncRequestNotUsableException) {
+            log.debug("Client went away before the response completed: {}", e.getMessage());
+            // Null, not an empty body: the response is finished either way, and
+            // Spring treats this as handled without trying to write.
+            return null;
+        }
+        log.error("I/O failure while writing a response", e);
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
     }
 
     /**

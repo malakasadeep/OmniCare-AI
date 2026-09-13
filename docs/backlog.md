@@ -25,3 +25,18 @@ log in again.
 Stateless JWTs cannot be withdrawn before they expire. A deleted user keeps a
 working access token for up to 15 minutes — `/api/me` re-checks the database,
 but other endpoints do not. A deny-list keyed on the `jti` claim would close it.
+
+## Visitor text in the streaming URL
+
+`GET /api/conversations/{id}/stream?message=...` puts the visitor's message in
+the query string, where access logs and proxies will record it. It is a GET
+because the browser's `EventSource` cannot POST. The fix is either a POST that
+returns a stream (needs `fetch` + `ReadableStream` in the widget rather than
+`EventSource`), or posting the message first and having the stream read it back.
+
+## Message ordering depends on timestamps
+
+Transcript order comes from `created_at`, and the service stamps a reply
+strictly after its question so the two cannot collide in the same microsecond.
+A monotonic per-conversation sequence column would make the ordering structural
+rather than something each writer has to remember.

@@ -6,6 +6,7 @@ import com.omnicare.platform.integration.llm.LlmProviderFactory;
 import com.omnicare.platform.integration.llm.LlmRequest;
 import java.util.List;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 /**
  * Answers a visitor by asking the configured language model.
@@ -38,11 +39,19 @@ class LlmReplier implements Replier {
 
     @Override
     public String replyTo(String visitorMessage) {
-        LlmRequest request = new LlmRequest(
+        return providers.current().chat(requestFor(visitorMessage)).content();
+    }
+
+    @Override
+    public Flux<String> streamReplyTo(String visitorMessage) {
+        return providers.current().streamChat(requestFor(visitorMessage));
+    }
+
+    private LlmRequest requestFor(String visitorMessage) {
+        return new LlmRequest(
                 List.of(LlmMessage.system(SYSTEM_PROMPT), LlmMessage.user(visitorMessage)),
                 properties.model(),
                 properties.temperature(),
                 properties.maxTokens());
-        return providers.current().chat(request).content();
     }
 }

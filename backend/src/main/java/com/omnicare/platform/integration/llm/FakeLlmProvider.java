@@ -1,5 +1,10 @@
 package com.omnicare.platform.integration.llm;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import reactor.core.publisher.Flux;
+
 /**
  * A provider that answers without a network or an API key.
  *
@@ -15,9 +20,27 @@ class FakeLlmProvider implements LlmProvider {
 
     static final String PREFIX = "[fake-llm]";
 
+    private static final int CHUNK_SIZE = 12;
+    private static final Duration CHUNK_DELAY = Duration.ofMillis(15);
+
     @Override
     public String name() {
         return "fake";
+    }
+
+    /**
+     * Splits the very same answer {@link #chat} produces, so the two paths can
+     * never drift. The small delay is what makes a manual {@code curl -N} show
+     * text arriving in pieces rather than all at once.
+     */
+    @Override
+    public Flux<String> streamChat(LlmRequest request) {
+        String answer = chat(request).content();
+        List<String> chunks = new ArrayList<>();
+        for (int start = 0; start < answer.length(); start += CHUNK_SIZE) {
+            chunks.add(answer.substring(start, Math.min(start + CHUNK_SIZE, answer.length())));
+        }
+        return Flux.fromIterable(chunks).delayElements(CHUNK_DELAY);
     }
 
     @Override

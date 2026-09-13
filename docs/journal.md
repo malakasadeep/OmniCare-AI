@@ -104,3 +104,23 @@ Five lines a day: what I learned, where I got stuck.
   variable yields a property that is *present and empty*, and `@ConditionalOnProperty(name = "api-key")`
   matches it. So the guard I added against a missing key did nothing. Now `@ConditionalOnExpression` on a
   non-blank value, and selecting groq without a key fails at startup naming the known providers.
+
+## Day 8 — Streaming with SSE
+
+- SSE over WebSocket because this is one-way and short-lived: the server talks, the browser listens, and
+  `EventSource` reconnects on its own. A WebSocket would be two pipes where one is needed. The cost is that
+  `EventSource` can only GET, which is why the message rides in the query string.
+- "Never hold a transaction open while streaming" stopped being advice. A model can take tens of seconds;
+  a transaction spanning that pins a pooled connection and its locks for the whole time, so a handful of
+  concurrent visitors would drain the pool. The question commits before the first token, the answer after
+  the last, and nothing is open in between.
+- The trap I did not see coming: `TenantContext` is a `ThreadLocal` set by a servlet filter on the *request*
+  thread, but `doFinally` runs on whichever thread the stream ended on. Without re-establishing the tenant
+  there, the final write has no `app.tenant_id` and RLS rejects it — the reply would simply vanish.
+- Tokens go over the wire as JSON, not raw text, because SSE strips one space after `data:`. Models emit
+  " world" rather than "world", so raw fragments would arrive with the spaces eaten and the answer would
+  read as one long run-on word. There is a test for exactly that.
+- A closed tab was being logged as an ERROR with a stack trace, and then the catch-all failed a second time
+  trying to write JSON into a committed `text/event-stream` response. Naming `ClientAbortException` did not
+  help — on this platform a bare `IOException` propagates. The honest discriminator is whether the response
+  is already committed: if it is, there is nobody left to tell.
