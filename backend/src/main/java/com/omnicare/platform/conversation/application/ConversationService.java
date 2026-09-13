@@ -69,6 +69,10 @@ public class ConversationService {
         Conversation conversation = requireReachable(conversationId);
         TenantId tenant = conversation.tenantId();
 
+        // Read the transcript before adding this turn: the builder takes the
+        // history and the current question as separate arguments.
+        List<Message> history = messages.findByConversation(conversationId);
+
         Instant askedAt = clock.instant();
         messages.save(Message.fromUser(tenant, conversationId, content, askedAt));
 
@@ -78,7 +82,7 @@ public class ConversationService {
         // order the model is later shown, undefined.
         Instant answeredAt = askedAt.plusMillis(1);
         return messages.save(Message.fromAssistant(
-                tenant, conversationId, replier.replyTo(content), answeredAt));
+                tenant, conversationId, replier.replyTo(history, content), answeredAt));
     }
 
     private Conversation requireReachable(ConversationId conversationId) {

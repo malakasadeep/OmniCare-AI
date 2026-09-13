@@ -1,5 +1,7 @@
 package com.omnicare.platform.conversation.application;
 
+import com.omnicare.platform.conversation.domain.Message;
+import java.util.List;
 import reactor.core.publisher.Flux;
 
 /**
@@ -12,11 +14,16 @@ import reactor.core.publisher.Flux;
  */
 public interface Replier {
 
-    String replyTo(String visitorMessage);
+    /**
+     * @param history        the transcript so far, oldest first, excluding the
+     *                       message being answered
+     * @param visitorMessage what the customer just asked
+     */
+    String replyTo(List<Message> history, String visitorMessage);
 
     /**
      * The same answer, delivered as it is produced. Concatenating every element
      * gives what {@link #replyTo} would have returned.
      */
-    Flux<String> streamReplyTo(String visitorMessage);
+    Flux<String> streamReplyTo(List<Message> history, String visitorMessage);
 }

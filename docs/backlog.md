@@ -40,3 +40,20 @@ Transcript order comes from `created_at`, and the service stamps a reply
 strictly after its question so the two cannot collide in the same microsecond.
 A monotonic per-conversation sequence column would make the ordering structural
 rather than something each writer has to remember.
+
+## Summarising evicted history instead of discarding it
+
+`PromptBuilder` evicts the oldest turns when a conversation outgrows the token
+budget. The alternative is to summarise what is dropped and carry the summary
+forward, which keeps older context at the cost of an extra model call per
+eviction and a summary that can itself be wrong. The window is the right first
+move; revisit if real conversations turn out to reference their own openings.
+
+## Token counting is an estimate
+
+`TokenEstimator` uses four characters per token, which is the usual rule for
+English prose and under-counts badly for scripts outside Latin-1 — sometimes a
+token per character. Since the product promises to answer in the customer's own
+language, the estimate is least accurate exactly where it matters most. The
+budget is set well under the model's real window to absorb that. A real
+tokeniser (jtokkit) would remove the guesswork.

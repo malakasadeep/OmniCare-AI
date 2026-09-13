@@ -10,6 +10,7 @@ import com.omnicare.platform.shared.domain.TenantId;
 import com.omnicare.platform.shared.tenancy.TenantContext;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,16 +72,18 @@ public class ConversationStreamService {
         Turn turn = transactions.execute(status -> {
             Conversation conversation = conversations.findById(conversationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Conversation"));
+            // Read before writing: the history is what came before this question.
+            List<Message> history = messages.findByConversation(conversationId);
             Instant askedAt = clock.instant();
             messages.save(Message.fromUser(
                     conversation.tenantId(), conversationId, visitorMessage, askedAt));
-            return new Turn(conversation.tenantId(), conversationId, askedAt);
+            return new Turn(conversation.tenantId(), conversationId, askedAt, history);
         });
 
         StringBuilder answer = new StringBuilder();
         AtomicBoolean saved = new AtomicBoolean(false);
 
-        return replier.streamReplyTo(visitorMessage)
+        return replier.streamReplyTo(turn.history(), visitorMessage)
                 .doOnNext(answer::append)
                 .doFinally(signal -> persistReply(turn, answer.toString(), saved, signal.toString()));
     }
@@ -114,6 +117,9 @@ public class ConversationStreamService {
     }
 
     /** What the terminal callback needs, captured while the request thread still has it. */
-    private record Turn(TenantId tenantId, ConversationId conversationId, Instant askedAt) {
+    private record Turn(TenantId tenantId,
+                        ConversationId conversationId,
+                        Instant askedAt,
+                        List<Message> history) {
     }
 }

@@ -25,6 +25,10 @@ omnicare:
     # Low, not zero: support answers should be steady rather than inventive.
     temperature: ${LLM_TEMPERATURE:0.3}
     max-tokens: ${LLM_MAX_TOKENS:1024}
+    # How much of the context window one prompt may use. Deliberately well below
+    # the model's real limit: the token count is an estimate that under-counts
+    # non-Latin scripts, and the answer needs room the prompt budget does not cover.
+    token-budget: ${LLM_TOKEN_BUDGET:8000}
     timeout: ${LLM_TIMEOUT:30s}
     groq:
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
