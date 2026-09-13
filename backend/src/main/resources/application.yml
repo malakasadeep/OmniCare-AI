@@ -14,6 +14,15 @@ spring:
   flyway:
     enabled: true
 
+omnicare:
+  jwt:
+    # Dev-only fallback so a fresh clone runs without setup. Production sets
+    # JWT_SECRET; changing it invalidates every token already issued, which is
+    # the only revocation a stateless scheme has.
+    secret: ${JWT_SECRET:dev-only-insecure-secret-replace-me-in-every-real-environment}
+    access-token-ttl: 15m
+    refresh-token-ttl: 30d
+
 management:
   endpoints:
     web:

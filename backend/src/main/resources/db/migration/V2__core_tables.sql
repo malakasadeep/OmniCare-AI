@@ -26,9 +26,10 @@ CREATE TABLE users (
     created_at    TIMESTAMPTZ NOT NULL,
     updated_at    TIMESTAMPTZ NOT NULL,
 
-    -- Scoped to the tenant, not global: the same person may hold an account
-    -- with two different companies using the platform.
-    CONSTRAINT users_tenant_email_key UNIQUE (tenant_id, email)
+    -- Global, not per-tenant. Login is email plus password with no tenant
+    -- selector, so a per-tenant constraint would make "which account is this?"
+    -- ambiguous the moment one address signed up twice.
+    CONSTRAINT users_email_key UNIQUE (email)
 );
 
 CREATE TABLE conversations (

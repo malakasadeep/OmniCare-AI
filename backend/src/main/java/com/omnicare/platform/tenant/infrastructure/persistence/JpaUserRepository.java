@@ -1,7 +1,6 @@
 package com.omnicare.platform.tenant.infrastructure.persistence;
 
 import com.omnicare.platform.shared.domain.Email;
-import com.omnicare.platform.shared.domain.TenantId;
 import com.omnicare.platform.shared.domain.UserId;
 import com.omnicare.platform.tenant.domain.User;
 import com.omnicare.platform.tenant.domain.UserRepository;
@@ -30,8 +29,12 @@ class JpaUserRepository implements UserRepository {
     }
 
     @Override
-    public Optional<User> findByTenantAndEmail(TenantId tenantId, Email email) {
-        return jpa.findByTenantIdAndEmail(tenantId.value(), email.value())
-                .map(TenantMapper::toDomain);
+    public Optional<User> findByEmail(Email email) {
+        return jpa.findByEmail(email.value()).map(TenantMapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByEmail(Email email) {
+        return jpa.existsByEmail(email.value());
     }
 }

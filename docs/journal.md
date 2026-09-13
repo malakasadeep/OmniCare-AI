@@ -31,3 +31,20 @@ Five lines a day: what I learned, where I got stuck.
 - Testcontainers beats H2 concretely: `ddl-auto: validate` checked my entity mappings against the *real*
   `V2__core_tables.sql` on real Postgres. Then I mutated the mapper to drop `escalation_reason` and watched
   the round-trip test fail — a test I never saw fail is a test I don't trust.
+
+## Day 4 — Authentication
+
+- The filter chain finally made sense as a chain: `JwtAuthenticationFilter` never rejects anything. It either
+  populates the `SecurityContext` or leaves it empty, and `SecurityConfig` alone decides whether anonymous is
+  allowed. That is why the filter needs no list of public paths.
+- Stateless auth's real trade-off is revocation: nothing is stored server-side, so an issued token cannot be
+  withdrawn. Hence 15 minutes for the access token and a separate long-lived refresh token — and a `typ`
+  claim, because without it a refresh token presented as an access token silently buys a 30-day session.
+- BCrypt is slow *on purpose* and salts each password itself. Also hashed on the "no such user" path so the
+  response time doesn't answer "does this address have an account?".
+- Stuck on where an error becomes an HTTP status. First draft had `shared` importing `tenant`'s exceptions,
+  which inverts the module dependency. Fixed with `ApplicationException` in `shared.api`: features depend on
+  shared, the handler only ever sees the base type.
+- Two things I got wrong and the tests caught: `users.email` was unique *per tenant* from Day 3, which makes
+  login by address ambiguous (now global), and my error body had a timestamp, so two failed logins weren't
+  byte-identical after all.
