@@ -160,6 +160,25 @@ class ConversationApiIntegrationTest {
         }
 
         @Test
+        void theReplyComesFromTheConfiguredProvider() throws Exception {
+            String conversationId = createConversation();
+
+            // The fake provider is selected by omnicare.llm.provider and marks
+            // its output, so this asserts the whole seam is wired: controller ->
+            // service -> Replier -> LlmProviderFactory -> provider.
+            mvc.perform(authed(post("/api/conversations/" + conversationId + "/messages"))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"content":"is my order shipped?"}
+                                    """))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.content").value(
+                            org.hamcrest.Matchers.containsString("[fake-llm]")))
+                    .andExpect(jsonPath("$.content").value(
+                            org.hamcrest.Matchers.containsString("is my order shipped?")));
+        }
+
+        @Test
         void rejectsAnEmptyMessage() throws Exception {
             String conversationId = createConversation();
 

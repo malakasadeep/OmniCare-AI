@@ -86,3 +86,21 @@ Five lines a day: what I learned, where I got stuck.
   `ResponseStatusException` extends `ErrorResponseException`, but `NoResourceFoundException` extends
   `ServletException` and only *implements* `ErrorResponse`. A catch-all is a liability unless you know
   exactly what it is catching.
+
+## Day 7 — The LlmProvider abstraction
+
+- Strategy finally clicked as a *boundary* rather than a pattern to recite. `LlmRequest`/`LlmResponse`
+  mention no vendor; every snake_case field, lower-cased role and `choices[0].message.content` burrow lives
+  inside `GroqProvider`. The rule "no vendor names in these types" is what makes the rest true.
+- Open/Closed is visible in the factory: it takes `List<LlmProvider>` and indexes by `name()`, so adding a
+  provider is a new bean plus one config value and the factory is never edited. A `switch` would have been
+  the same number of lines and the wrong shape.
+- The fake provider lives in main, not test sources. That is what makes "flip one value and the model swaps"
+  a real claim, and what lets a fresh clone run with no key.
+- Tested Groq without a key or a network by stubbing `ExchangeFunction`, which checks both translations:
+  the JSON sent and the JSON parsed. `MockClientHttpRequest` needs an explicit write handler or it keeps
+  nothing and `getBody()` complains the body is not set.
+- Got a condition wrong in a way that was worth writing down. `api-key: ${GROQ_API_KEY:}` means an unset
+  variable yields a property that is *present and empty*, and `@ConditionalOnProperty(name = "api-key")`
+  matches it. So the guard I added against a missing key did nothing. Now `@ConditionalOnExpression` on a
+  non-blank value, and selecting groq without a key fails at startup naming the known providers.
