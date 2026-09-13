@@ -62,6 +62,20 @@ public final class User {
                 registeredAt);
     }
 
+    /**
+     * Rebuilds a user from state that was already persisted. For the
+     * persistence mappers only — see {@code Conversation.rehydrate}.
+     */
+    public static User rehydrate(UserId id,
+                                 TenantId tenantId,
+                                 Email email,
+                                 String passwordHash,
+                                 UserRole role,
+                                 Instant createdAt,
+                                 Instant updatedAt) {
+        return new User(id, tenantId, email, passwordHash, role, createdAt, updatedAt);
+    }
+
     public void changePassword(String newPasswordHash, Instant occurredAt) {
         Objects.requireNonNull(occurredAt, "occurredAt must not be null");
         this.passwordHash = Guards.requireNonBlank(newPasswordHash, "newPasswordHash");
