@@ -3,8 +3,10 @@ spring:
     name: omnicare-platform
   datasource:
     url: jdbc:postgresql://localhost:5433/omnicare
-    username: ${DB_USER:omnicare}
-    password: ${DB_PASSWORD:omnicare_dev}
+    # Deliberately not the POSTGRES_USER. That role is a superuser, and
+    # superusers bypass row level security outright. See docker/postgres-init.
+    username: ${DB_USER:omnicare_app}
+    password: ${DB_PASSWORD:omnicare_app_dev}
   jpa:
     hibernate:
       ddl-auto: validate

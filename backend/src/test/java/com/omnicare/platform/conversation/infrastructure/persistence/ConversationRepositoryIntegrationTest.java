@@ -11,6 +11,7 @@ import com.omnicare.platform.shared.domain.Email;
 import com.omnicare.platform.shared.domain.TenantId;
 import com.omnicare.platform.shared.domain.UserId;
 import com.omnicare.platform.shared.domain.VisitorId;
+import com.omnicare.platform.shared.tenancy.TenantContext;
 import com.omnicare.platform.tenant.domain.Plan;
 import com.omnicare.platform.tenant.domain.Tenant;
 import com.omnicare.platform.tenant.domain.TenantRepository;
@@ -19,6 +20,7 @@ import com.omnicare.platform.tenant.domain.UserRepository;
 import com.omnicare.platform.tenant.domain.UserRole;
 import java.time.Instant;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,8 +52,16 @@ class ConversationRepositoryIntegrationTest {
     private TenantId tenantId;
 
     @BeforeEach
-    void createOwningTenant() {
+    void createOwningTenantAndEnterItsContext() {
         tenantId = tenants.save(Tenant.register("Acme Ltd", Plan.FREE, T0)).id();
+        // Conversations are behind row level security from V3 onward, so these
+        // reads and writes need the same tenant scope a real request would carry.
+        TenantContext.set(tenantId);
+    }
+
+    @AfterEach
+    void leaveTenantContext() {
+        TenantContext.clear();
     }
 
     @Test

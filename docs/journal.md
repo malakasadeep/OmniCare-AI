@@ -48,3 +48,22 @@ Five lines a day: what I learned, where I got stuck.
 - Two things I got wrong and the tests caught: `users.email` was unique *per tenant* from Day 3, which makes
   login by address ambiguous (now global), and my error body had a timestamp, so two failed logins weren't
   byte-identical after all.
+
+## Day 5 — Multi-tenancy and RLS
+
+- Wrote the policies, ran the isolation test, watched all of it fail. Root cause: **a superuser bypasses RLS
+  unconditionally** — `ENABLE` and even `FORCE` are ignored for them — and `POSTGRES_USER` is always a
+  superuser. Proved it on a throwaway table: same query, 2 rows as superuser, 1 row as a plain role. The app
+  now connects as `omnicare_app`, created NOSUPERUSER by a container init script.
+- `SET LOCAL` vs `SET` stopped being trivia. Connections are pooled, so a plain `SET` outlives the request
+  and the next tenant to borrow that connection inherits it — a leak that would only appear under load.
+  `set_config(..., true)` is reverted by Postgres at commit, so a connection always returns unscoped.
+- Second failure, subtler: `findById` worked but `countByTenantId` returned 0. Spring Data annotates the CRUD
+  methods it inherits, not *derived* query methods, so those ran with no transaction — no transaction, no
+  `doBegin`, no `app.tenant_id`, no rows. Tenant scoping that hangs off a transaction fails silently exactly
+  where there isn't one. Every repository adapter is now `@Transactional`.
+- Third, and only a real HTTP call could find it: a thrown `ResponseStatusException` triggers a servlet ERROR
+  dispatch, the `OncePerRequestFilter`s don't run again, so `/error` arrives unauthenticated and every 404
+  reached the client as a 401. MockMvc never performs that dispatch. Added a `RANDOM_PORT` test that does.
+- Defense in depth is now literal: the app filters by tenant, and if it forgets, `select * from conversations`
+  returns 3 rows scoped to A, 0 rows unscoped — and 6 to a superuser, which is the whole reason it isn't one.
