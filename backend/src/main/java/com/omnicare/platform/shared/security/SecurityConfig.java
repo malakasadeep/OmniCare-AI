@@ -1,5 +1,7 @@
 package com.omnicare.platform.shared.security;
 
+import com.omnicare.platform.shared.tenancy.TenantFilter;
+import jakarta.servlet.DispatcherType;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -20,6 +22,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * <p>Stateless: no session is created, no session is consulted, and CSRF
  * protection is off because there is no cookie for a third-party page to ride.
  * Authentication comes from the {@code Authorization} header on every request.
+ *
+ * <p>The two custom filters are constructed here rather than declared as beans
+ * on purpose. Boot auto-registers any {@code Filter} bean into the plain servlet
+ * chain as well, which would run them a second time outside Spring Security and
+ * before it has had a chance to establish — or clear — the security context.
  */
 @Configuration
 @EnableWebSecurity
@@ -27,12 +34,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter)
-            throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService) throws Exception {
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtService);
         return http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> requests
+                        // Internal dispatches, not client requests. A controller
+                        // that throws is forwarded to /error, and the filters —
+                        // being OncePerRequestFilter — do not run again, so that
+                        // dispatch arrives with an empty security context. Left
+                        // to anyRequest().authenticated() it is denied, and every
+                        // 404 or 500 reaches the client as a misleading 401.
+                        // ASYNC is here for the same reason, and Day 8's SSE
+                        // responses will depend on it.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
@@ -40,12 +56,10 @@ class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // Strictly after the JWT filter: it reads the tenant off the
+                // principal that filter established.
+                .addFilterAfter(new TenantFilter(), JwtAuthenticationFilter.class)
                 .build();
-    }
-
-    @Bean
-    JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService) {
-        return new JwtAuthenticationFilter(jwtService);
     }
 
     @Bean
