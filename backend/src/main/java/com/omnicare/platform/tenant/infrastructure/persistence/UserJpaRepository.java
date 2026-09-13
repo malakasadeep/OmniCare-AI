@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /** Spring Data's view of {@code users}. Not exposed beyond this package. */
 interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
 
-    Optional<UserEntity> findByTenantIdAndEmail(UUID tenantId, String email);
+    Optional<UserEntity> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 }
