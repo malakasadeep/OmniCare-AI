@@ -34,13 +34,20 @@ public class LlmProviderFactory {
 
         String configured = properties.provider() == null
                 ? "" : properties.provider().toLowerCase(Locale.ROOT);
-        this.selected = byName.get(configured);
-        if (selected == null) {
+        LlmProvider chosen = byName.get(configured);
+        if (chosen == null) {
             throw new IllegalStateException(
                     "omnicare.llm.provider is '%s'; known providers are %s".formatted(
                             properties.provider(), byName.keySet().stream().sorted().toList()));
         }
-        log.info("Language model provider: {}", selected.name());
+
+        // Wrapped once, here, so every caller gets retries, a circuit breaker and
+        // a fallback without asking — and so a provider added later gets them
+        // without writing any resilience code of its own.
+        this.selected = properties.resilience() == null
+                ? chosen
+                : new ResilientLlmProvider(chosen, properties.resilience().toSettings());
+        log.info("Language model provider: {} (with retry and circuit breaker)", selected.name());
     }
 
     public LlmProvider current() {

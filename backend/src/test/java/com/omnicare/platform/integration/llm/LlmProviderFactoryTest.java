@@ -36,7 +36,10 @@ class LlmProviderFactoryTest {
     }
 
     private static LlmProperties configuredFor(String provider) {
-        return new LlmProperties(provider, "some-model", 0.3, 256, Duration.ofSeconds(30),
+        return new LlmProperties(provider, "some-model", 0.3, 256,
+                Duration.ofSeconds(5), Duration.ofSeconds(30),
+                new LlmProperties.Resilience(3, Duration.ofMillis(10), 50.0f, 20, 10,
+                        Duration.ofSeconds(30)),
                 new LlmProperties.Groq("https://api.groq.test/openai/v1", "key"));
     }
 
@@ -98,5 +101,18 @@ class LlmProviderFactoryTest {
                 List.of(LlmMessage.user("hi")), "some-model", 0.3, 128));
 
         assertThat(response.content()).isEqualTo("from fake");
+    }
+
+    /**
+     * The provider handed out is wrapped in retries and a breaker, but it is
+     * still only an {@link LlmProvider} and still answers to the configured name,
+     * so nothing downstream can tell — or needs to.
+     */
+    @Test
+    void theProviderHandedOutIsResilientButStillJustAnLlmProvider() {
+        LlmProvider provider = new LlmProviderFactory(AVAILABLE, configuredFor("groq")).current();
+
+        assertThat(provider.name()).isEqualTo("groq");
+        assertThat(provider).isNotSameAs(AVAILABLE.get(1));
     }
 }

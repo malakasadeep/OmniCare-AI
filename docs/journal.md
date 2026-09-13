@@ -143,3 +143,22 @@ Five lines a day: what I learned, where I got stuck.
   and reasoning rather than a second copy — a duplicated prompt drifts, and then nobody knows which text the
   model actually saw. Verified the window at runtime: the same 122-message conversation sends 122 messages
   at budget 8000 and 14 at budget 800, and stays answerable either way.
+
+## Day 10 — Resilience
+
+- Retry and circuit breaker answer different questions. Retry is for the failure that will not happen
+  again — a 429, a momentary 502. The breaker is for the one that will: once a provider is clearly down,
+  stop paying the timeout on every request. Measured it with the provider pointed at a dead port:
+  1723 ms per message, then 98 ms once the circuit opened. Same polite answer either way, never a 500.
+- Jitter is not a detail. Plain exponential backoff makes every request that failed together retry together,
+  and that synchronised burst is what stops a struggling provider recovering. `ofExponentialRandomBackoff`.
+- Classifying failures mattered more than I expected. 429 and 5xx are worth retrying; every other 4xx is a
+  statement about the request that will be just as true next time, so retrying it spends the visitor's
+  patience and, on a metered API, their money. Hence `LlmProviderException.isRetryable()`.
+- The bug the tests caught: with the breaker inside the retry it counts *attempts*, not requests, so a
+  `minimumNumberOfCalls` at or below the retry budget lets the circuit open part-way through a single
+  request and cut its own retries short. I asked for three attempts and got two. `ResilienceSettings` now
+  refuses that configuration outright rather than letting it silently shrink the retry budget.
+- No retry on the streaming path, deliberately: a stream that fails mid-answer has already put text in front
+  of the visitor, and starting over would repeat it. Also learned to run `mvn clean verify` before believing
+  a green build — incremental compilation happily ran stale test classes against a changed record.
