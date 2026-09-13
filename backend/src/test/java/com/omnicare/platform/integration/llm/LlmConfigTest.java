@@ -27,7 +27,14 @@ class LlmConfigTest {
                     "omnicare.llm.model=some-model",
                     "omnicare.llm.temperature=0.3",
                     "omnicare.llm.max-tokens=256",
+                    "omnicare.llm.connect-timeout=5s",
                     "omnicare.llm.timeout=30s",
+                    "omnicare.llm.resilience.max-attempts=3",
+                    "omnicare.llm.resilience.initial-backoff=10ms",
+                    "omnicare.llm.resilience.failure-rate-threshold=50",
+                    "omnicare.llm.resilience.sliding-window-size=20",
+                    "omnicare.llm.resilience.minimum-calls=10",
+                    "omnicare.llm.resilience.open-state-wait=30s",
                     "omnicare.llm.groq.base-url=https://api.groq.test/openai/v1");
 
     @Test

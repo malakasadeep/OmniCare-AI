@@ -29,7 +29,23 @@ omnicare:
     # the model's real limit: the token count is an estimate that under-counts
     # non-Latin scripts, and the answer needs room the prompt budget does not cover.
     token-budget: ${LLM_TOKEN_BUDGET:8000}
+    # Never infinite. A call that never returns holds a request thread until the
+    # socket dies, and enough of those is an outage caused by someone else's.
+    connect-timeout: ${LLM_CONNECT_TIMEOUT:5s}
     timeout: ${LLM_TIMEOUT:30s}
+    resilience:
+      # Total attempts including the first.
+      max-attempts: 3
+      # Doubled each retry, with jitter, so requests that failed together do not
+      # retry together and hit a struggling provider as one synchronised burst.
+      initial-backoff: 500ms
+      failure-rate-threshold: 50
+      sliding-window-size: 20
+      # Must exceed max-attempts: the breaker counts attempts, not requests, so a
+      # lower minimum lets the circuit open part-way through a single request and
+      # cut its own retries short.
+      minimum-calls: 10
+      open-state-wait: 30s
     groq:
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
       # Empty by default, and the provider bean is not created without it, so a

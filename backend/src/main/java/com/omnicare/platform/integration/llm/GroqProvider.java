@@ -61,10 +61,14 @@ class GroqProvider implements LlmProvider {
             // to the caller: providers quote the offending API key back in it.
             log.warn("Groq refused the request with {}", e.getStatusCode());
             throw new LlmProviderException(
-                    "Language model request failed with status " + e.getStatusCode().value(), e);
+                    "Language model request failed with status " + e.getStatusCode().value(),
+                    e,
+                    isRetryable(e.getStatusCode().value()));
         } catch (RuntimeException e) {
+            // A timeout or a connection failure — nothing was refused, so trying
+            // again is reasonable.
             log.warn("Groq request failed: {}", e.toString());
-            throw new LlmProviderException("Language model request failed", e);
+            throw new LlmProviderException("Language model request failed", e, true);
         }
 
         return toNeutralFormat(response);
@@ -95,7 +99,7 @@ class GroqProvider implements LlmProvider {
                 .mapNotNull(GroqProvider::contentOf)
                 .filter(content -> !content.isEmpty())
                 .onErrorMap(e -> !(e instanceof LlmProviderException),
-                        e -> new LlmProviderException("Language model stream failed", e));
+                        e -> new LlmProviderException("Language model stream failed", e, true));
     }
 
     /** @return the delta's text, or {@code null} for an event carrying none */
@@ -111,6 +115,15 @@ class GroqProvider implements LlmProvider {
             log.debug("Skipping unparseable stream event");
             return null;
         }
+    }
+
+    /**
+     * 429 means "you are going too fast", and 5xx means the provider is having a
+     * bad moment — both plausibly succeed on a second attempt. Every other 4xx is
+     * a statement about the request itself and will be just as true next time.
+     */
+    private static boolean isRetryable(int status) {
+        return status == 429 || status >= 500;
     }
 
     private static ChatCompletionRequest toWireFormat(LlmRequest request) {
